@@ -2,6 +2,29 @@ provider "aws" {
   region = "us-east-1"
 }
 
+data "aws_iam_policy_document" "start_stop_ec2_policydoc" {
+  statement {
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "arn:aws:logs:*:*:*"
+    ]
+  }
+
+  statement {
+    actions = ["ec2:DescribeInstances",
+      "ec2:DescribeRegions",
+      "ec2:StartInstances",
+    "ec2:StopInstances"]
+    resources = [
+      "*"
+    ]
+  }
+}
+
 resource "aws_iam_role" "start_stop_ec2_role" {
   name = "start_stop_ec2_role"
 
@@ -24,33 +47,7 @@ EOF
 
 resource "aws_iam_policy" "start_stop_ec2_policy" {
   name = "start_stop_ec2_policy"
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ],
-      "Resource": "arn:aws:logs:*:*:*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:DescribeInstances",
-        "ec2:DescribeRegions",
-        "ec2:StartInstances",
-        "ec2:StopInstances"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-EOF
+  policy = data.aws_iam_policy_document.start_stop_ec2_policydoc.json
 }
 
 resource "aws_iam_role_policy_attachment" "start_stop_ec2_attachment" {
@@ -127,4 +124,44 @@ resource "aws_instance" "lambda_scheduled_instances" {
   tags = {
     lambda_scheduled = "true"
   }
+}
+
+resource "aws_cloudwatch_event_rule" "stop_even_minutes" {
+  name                = "stop-even-minutes"
+  description         = "Fires on even minutes"
+  schedule_expression = "cron(0/2 * ? * * *)"
+}
+
+resource "aws_cloudwatch_event_target" "stop-instances-even-minutes" {
+  rule      = aws_cloudwatch_event_rule.stop_even_minutes.name
+  target_id = "lambda"
+  arn       = aws_lambda_function.stop_ec2.arn
+}
+
+resource "aws_cloudwatch_event_rule" "start_odd_minutes" {
+  name                = "start-odd-minutes"
+  description         = "Fires on odd minutes"
+  schedule_expression = "cron(1/2 * ? * * *)"
+}
+
+resource "aws_cloudwatch_event_target" "start-instances-odd-minutes" {
+  rule      = aws_cloudwatch_event_rule.start_odd_minutes.name
+  target_id = "lambda"
+  arn       = aws_lambda_function.start_ec2.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_stop_ec2" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.stop_ec2.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.stop_even_minutes.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_start_ec2" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.start_ec2.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.start_odd_minutes.arn
 }
