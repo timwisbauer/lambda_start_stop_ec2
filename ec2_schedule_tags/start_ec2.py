@@ -1,3 +1,4 @@
+import botocore
 import boto3
 import logging
 
@@ -11,15 +12,18 @@ def lambda_handler(event, context):
     # Iterate over all regions.
     for region in ec2_client.describe_regions()['Regions']:
         logger.info(f"Region: {region}")
-        ec2_resource = boto3.resource('ec2', region_name = region)
+        try: 
+            ec2_resource = boto3.resource('ec2', region_name = region['RegionName'])
 
-        # Get stopped and tagged instances.
-        instances = ec2_resource.instances.filter(
-            Filters=[{'Name': 'instance-state-name',
-                      'Values': ['stopped']}, 
-                      {'Name':'tag:lambda_scheduled', 'Values': 'true'}]
-        )
-
-        for instance in instances:
-            logger.info(f"Starting instance: {instance.id}")
-            instance.start()
+            # Get stopped and tagged instances.
+            instances = ec2_resource.instances.filter(
+                Filters=[{'Name': 'instance-state-name',
+                        'Values': ['stopped']}, 
+                        {'Name':'tag:lambda_scheduled', 'Values': ['true']}]
+            )
+            logger.info(instances)
+            for instance in instances:
+                logger.info(f"Starting instance: {instance.id}")
+                instance.start()
+        except botocore.exceptions.ClientError as err:
+            logger.error(f"Error with region {region['RegionName']}: {err}")

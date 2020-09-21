@@ -70,6 +70,7 @@ resource "aws_lambda_function" "stop_ec2" {
   role          = aws_iam_role.start_stop_ec2_role.arn
   handler       = "stop_ec2.lambda_handler"
   description   = "Stops EC2 instances based on tag."
+  timeout       = 60
 
   # The filebase64sha256() function is available in Terraform 0.11.12 and later
   # For Terraform 0.11.11 and earlier, use the base64sha256() function and the file() function:
@@ -92,6 +93,7 @@ resource "aws_lambda_function" "start_ec2" {
   role          = aws_iam_role.start_stop_ec2_role.arn
   handler       = "start_ec2.lambda_handler"
   description   = "Starts EC2 instances based on tag."
+  timeout       = 60
 
   # The filebase64sha256() function is available in Terraform 0.11.12 and later
   # For Terraform 0.11.11 and earlier, use the base64sha256() function and the file() function:
@@ -119,7 +121,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "lambda_scheduled_instances" {
-  ami = data.aws_ami.ubuntu.id
+  ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.nano"
 
   tags = {
