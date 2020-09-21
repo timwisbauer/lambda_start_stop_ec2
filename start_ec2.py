@@ -18,12 +18,11 @@ def lambda_handler(event, context):
             # Get stopped and tagged instances.
             instances = ec2_resource.instances.filter(
                 Filters=[{'Name': 'instance-state-name',
-                        'Values': ['running']}, 
+                        'Values': ['stopped']}, 
                         {'Name':'tag:lambda_scheduled', 'Values': ['true']}]
             )
-            logger.info(instances)
             for instance in instances:
-                logger.info(f"Stopping instance: {instance.id}")
-                instance.stop()
+                logger.info(f"Starting instance: {instance.id}")
+                instance.start()
         except botocore.exceptions.ClientError as err:
             logger.error(f"Error with region {region['RegionName']}: {err}")

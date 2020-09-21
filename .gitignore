@@ -1,5 +1,5 @@
 env/
-*/*.zip
+*.zip
 
 # Local .terraform directories
 **/.terraform/*
